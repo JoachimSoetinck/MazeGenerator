@@ -25,19 +25,40 @@ public class MazeRenderer : MonoBehaviour
     private MazeGenerator mazeGenerator = null;
 
     private Dictionary<Vector3, Transform> wallObjects = new Dictionary<Vector3, Transform>();
+    private Wall[,] maze;
+
+    private Camera mazeCamera; // Reference to the camera used to view the maze
 
     void Start()
     {
+        InitializeMaze();
         StartCoroutine(GenerateAndDrawMaze());
+        SpawnAndActivateCamera();
+    }
+
+    private void InitializeMaze()
+    {
+        maze = new Wall[width, height];
+        for (int i = 0; i < width; ++i)
+        {
+            for (int j = 0; j < height; ++j)
+            {
+                maze[i, j] = new Wall();
+                maze[i, j].Left = true;
+                maze[i, j].Right = true;
+                maze[i, j].Up = true;
+                maze[i, j].Down = true;
+            }
+        }
     }
 
     private IEnumerator GenerateAndDrawMaze()
     {
         var floor = Instantiate(floorPrefab, transform);
         floor.localScale = new Vector3(width * size, 1, height * size);
-
         RenderAllWalls();
         yield return StartCoroutine(mazeGenerator.GenerateMazeOverTime(width, height, RemoveWall));
+        
     }
 
     private void RenderWall(Vector3 position, Quaternion rotation)
@@ -56,13 +77,14 @@ public class MazeRenderer : MonoBehaviour
                 var position = new Vector3(i * size, 0, j * size);
 
                 if (j == 0)
-                    RenderWall(position + new Vector3(0, 0, -size / 2), Quaternion.identity);
+                    RenderWall(position + new Vector3(0, 0, -size / 2), Quaternion.identity); // Bottom wall
 
                 if (i == width - 1)
-                    RenderWall(position + new Vector3(size / 2, 0, 0), Quaternion.Euler(0, 90, 0));
+                    RenderWall(position + new Vector3(size / 2, 0, 0), Quaternion.Euler(0, 90, 0)); // Right wall
 
-                RenderWall(position + new Vector3(-size / 2, 0, 0), Quaternion.Euler(0, 90, 0));
-                RenderWall(position + new Vector3(0, 0, size / 2), Quaternion.identity);
+                RenderWall(position + new Vector3(-size / 2, 0, 0), Quaternion.Euler(0, 90, 0)); // Left wall
+
+                RenderWall(position + new Vector3(0, 0, size / 2), Quaternion.identity); // Top wall
             }
         }
     }
@@ -75,16 +97,16 @@ public class MazeRenderer : MonoBehaviour
 
         if (neighbourPos.X == i)
         {
-            if (neighbourPos.Y > j)
+            if (neighbourPos.Y > j) 
                 RemoveWallAndUpdateDictionary(position + new Vector3(0, 0, size / 2));
-            else
+            else 
                 RemoveWallAndUpdateDictionary(position + new Vector3(0, 0, -size / 2));
         }
         else
         {
-            if (neighbourPos.X > i)
+            if (neighbourPos.X > i) 
                 RemoveWallAndUpdateDictionary(position + new Vector3(size / 2, 0, 0));
-            else
+            else 
                 RemoveWallAndUpdateDictionary(position + new Vector3(-size / 2, 0, 0));
         }
     }
@@ -96,5 +118,15 @@ public class MazeRenderer : MonoBehaviour
             Destroy(wallTransform.gameObject);
             wallObjects.Remove(wallPosition);
         }
+    }
+
+    private void SpawnAndActivateCamera()
+    {
+        GameObject cameraObj = new GameObject("MazeCamera");
+        mazeCamera = cameraObj.AddComponent<Camera>();
+        Vector3 center = new Vector3((width - 1) * size / 2f, 0f, (height - 1) * size / 2f);
+        Vector3 cameraPosition = center + Vector3.up * Mathf.Max(width, height) * size;
+        mazeCamera.transform.position = cameraPosition;
+        mazeCamera.transform.LookAt(center);
     }
 }
