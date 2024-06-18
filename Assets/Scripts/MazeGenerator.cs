@@ -26,93 +26,42 @@ public struct Neighbour
 public class MazeGenerator : MonoBehaviour
 {
     public float stepDelay = 0.1f;
+    public enum AlgorithmType { RecursiveBacktracker }
+    public AlgorithmType selectedAlgorithm = AlgorithmType.RecursiveBacktracker;
 
-    public IEnumerator GenerateMazeOverTime(int width, int height, Wall[,] maze, System.Action<Position, Position> drawStep)
+    private Wall[,] maze;
+    private IMazeAlgorithm mazeAlgorithm;
+
+    private void Awake()
     {
-        // Start position for maze generation
-        Position startPos = new Position { X = Random.Range(0, width), Y = Random.Range(0, height) };
-        maze[startPos.X, startPos.Y].Visited = true;
-
-        // Start recursive maze generation
-        yield return StartCoroutine(RecursiveBacktracker(maze, startPos, width, height, drawStep));
-    }
-
-    private IEnumerator RecursiveBacktracker(Wall[,] maze, Position currentPos, int width, int height, System.Action<Position, Position> drawStep)
-    {
-        // Get unvisited neighbours of current position
-        List<Neighbour> unvisitedNeighbours = GetUnvisitedNeighbours(currentPos, maze, width, height);
-
-        // Continue until there are unvisited neighbours
-        while (unvisitedNeighbours.Count > 0)
+        switch (selectedAlgorithm)
         {
-            // Randomly select a neighbour
-            int randomIndex = Random.Range(0, unvisitedNeighbours.Count);
-            Position neighbourPos = unvisitedNeighbours[randomIndex].Position;
-
-            // Update walls between current position and selected neighbour
-            UpdateWalls(currentPos, neighbourPos, maze);
-
-            // Mark neighbour as visited
-            maze[neighbourPos.X, neighbourPos.Y].Visited = true;
-
-            // Execute draw step action
-            drawStep(currentPos, neighbourPos);
-            yield return new WaitForSeconds(stepDelay);
-
-            // Recursively call backtracker for the selected neighbour
-            yield return StartCoroutine(RecursiveBacktracker(maze, neighbourPos, width, height, drawStep));
-
-            // Update unvisited neighbours for current position
-            unvisitedNeighbours = GetUnvisitedNeighbours(currentPos, maze, width, height);
+            case AlgorithmType.RecursiveBacktracker:
+            default:
+                mazeAlgorithm = new RecursiveBacktracker();
+                break;
         }
     }
 
-    private void UpdateWalls(Position currentPos, Position neighbourPos, Wall[,] maze)
+    public IEnumerator GenerateMazeOverTime(int width, int height, System.Action<Position, Position> drawStep)
     {
-        if (neighbourPos.X == currentPos.X)
-        {
-            if (neighbourPos.Y > currentPos.Y)
-            {
-                maze[currentPos.X, currentPos.Y].Up = false;
-                maze[neighbourPos.X, neighbourPos.Y].Down = false;
-            }
-            else
-            {
-                maze[currentPos.X, currentPos.Y].Down = false;
-                maze[neighbourPos.X, neighbourPos.Y].Up = false;
-            }
-        }
-        else
-        {
-            if (neighbourPos.X > currentPos.X)
-            {
-                maze[currentPos.X, currentPos.Y].Right = false;
-                maze[neighbourPos.X, neighbourPos.Y].Left = false;
-            }
-            else
-            {
-                maze[currentPos.X, currentPos.Y].Left = false;
-                maze[neighbourPos.X, neighbourPos.Y].Right = false;
-            }
-        }
+        InitializeMaze(width, height);
+        yield return StartCoroutine(mazeAlgorithm.GenerateMaze(maze, width, height, drawStep, stepDelay));
     }
 
-    private List<Neighbour> GetUnvisitedNeighbours(Position p, Wall[,] maze, int width, int height)
+    private void InitializeMaze(int width, int height)
     {
-        var list = new List<Neighbour>();
-
-        if (p.X > 0 && !maze[p.X - 1, p.Y].Visited)
-            list.Add(new Neighbour { Position = new Position { X = p.X - 1, Y = p.Y }, SharedWall = maze[p.X, p.Y] });
-
-        if (p.X < width - 1 && !maze[p.X + 1, p.Y].Visited)
-            list.Add(new Neighbour { Position = new Position { X = p.X + 1, Y = p.Y }, SharedWall = maze[p.X, p.Y] });
-
-        if (p.Y > 0 && !maze[p.X, p.Y - 1].Visited)
-            list.Add(new Neighbour { Position = new Position { X = p.X, Y = p.Y - 1 }, SharedWall = maze[p.X, p.Y] });
-
-        if (p.Y < height - 1 && !maze[p.X, p.Y + 1].Visited)
-            list.Add(new Neighbour { Position = new Position { X = p.X, Y = p.Y + 1 }, SharedWall = maze[p.X, p.Y] });
-
-        return list;
+        maze = new Wall[width, height];
+        for (int i = 0; i < width; ++i)
+        {
+            for (int j = 0; j < height; ++j)
+            {
+                maze[i, j] = new Wall();
+                maze[i, j].Left = true;
+                maze[i, j].Right = true;
+                maze[i, j].Up = true;
+                maze[i, j].Down = true;
+            }
+        }
     }
 }
